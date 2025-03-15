@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import io from "socket.io-client";
+import Robot from "./Bot/Bot_run";
 
 // Import Components
 import ChatHeader from "./components/ChatHeader";
@@ -19,6 +20,10 @@ const TodoChatApp = () => {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showTodoList, setShowTodoList] = useState(false);
+  const [botState, setBotState] = useState({
+    expression: "idle",
+    message: "Ready to assist you!",
+  });
   const chatEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -33,7 +38,16 @@ const TodoChatApp = () => {
     fetchTodos();
 
     socket.on("response", (response) => {
+      console.log("Backend Response Message:", response.content);
       if (!response.content.message) return;
+
+      // Update bot state with the expression and message from backend
+      if (response.content.expression) {
+        setBotState({
+          expression: response.content.expression,
+          message: response.content.message,
+        });
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -91,9 +105,17 @@ const TodoChatApp = () => {
       timestamp: new Date().toLocaleTimeString(),
     };
 
+    console.log("User Message:", userMessage);
+
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
+
+    // Set bot to thinking expression when waiting for response
+    setBotState({
+      expression: "expressThinking",
+      message: "Let me think about that...",
+    });
 
     socket.emit("message", input);
   };
@@ -165,6 +187,9 @@ const TodoChatApp = () => {
             onDelete={handleDelete}
           />
         </div>
+      </div>
+      <div className="absolute w-1/3 pt-40 pl-72 z-40">
+        <Robot expression={botState.expression} message={botState.message} />
       </div>
     </div>
   );
