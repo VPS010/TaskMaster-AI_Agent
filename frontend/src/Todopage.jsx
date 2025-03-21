@@ -23,6 +23,7 @@ const TodoChatApp = () => {
   const [botState, setBotState] = useState({
     expression: "idle",
     message: "Ready to assist you!",
+    parameters: null,
   });
   const chatEndRef = useRef(null);
 
@@ -41,11 +42,36 @@ const TodoChatApp = () => {
       console.log("Backend Response Message:", response.content);
       if (!response.content.message) return;
 
-      // Update bot state with the expression and message from backend
+      // First set loading to false as we received the response
+      setLoading(false);
+
+      // Process the bot expression data from the backend
       if (response.content.expression) {
+        // Check if expression is an object with expression and parameters properties
+        if (
+          typeof response.content.expression === "object" &&
+          response.content.expression.expression
+        ) {
+          // New format
+          setBotState({
+            expression: response.content.expression.expression,
+            message: response.content.message,
+            parameters: response.content.expression.parameters,
+          });
+        } else {
+          // Old format (just the expression string)
+          setBotState({
+            expression: response.content.expression,
+            message: response.content.message,
+            parameters: null,
+          });
+        }
+      } else {
+        // If no expression is provided, set to idle
         setBotState({
-          expression: response.content.expression,
+          expression: "idle",
           message: response.content.message,
+          parameters: null,
         });
       }
 
@@ -70,7 +96,6 @@ const TodoChatApp = () => {
           timestamp: new Date().toLocaleTimeString(),
         },
       ]);
-      setLoading(false);
 
       if (response.content.requiresUpdate) {
         fetchTodos();
@@ -109,14 +134,34 @@ const TodoChatApp = () => {
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+
+    // Set loading to true first
     setLoading(true);
 
-    // Set bot to thinking expression when waiting for response
+    // Set bot to thinking expression with specific parameters
     setBotState({
       expression: "expressThinking",
       message: "Let me think about that...",
+      parameters: {
+        eyes: {
+          shape: "focused",
+          animation: "scanLeftRight",
+          color: "#00FFFF",
+        },
+        mouth: {
+          shape: "line",
+          pulsate: true,
+          width: 1.0,
+        },
+        head: {
+          tilt: 3,
+          hoverAmplitude: 2,
+          hoverSpeed: 2,
+        },
+      },
     });
 
+    // Send the message to the server
     socket.emit("message", input);
   };
 
@@ -188,8 +233,14 @@ const TodoChatApp = () => {
           />
         </div>
       </div>
-      <div className="absolute w-1/3 pt-40 pl-72 z-40">
-        <Robot expression={botState.expression} message={botState.message} />
+
+      {/* Robot positioned slightly left of center horizontally and centered vertically */}
+      <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 h-1/2 z-40 pointer-events-none">
+        <Robot
+          expression={botState.expression}
+          message={botState.message}
+          parameters={botState.parameters}
+        />
       </div>
     </div>
   );

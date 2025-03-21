@@ -163,14 +163,19 @@ class TodoAIChat {
     }
 
     async handleFunctionCall(chat, name, args) {
-        console.log(`⚙️ Calling function: ${name}`, args); // for debugging
+        console.log(`⚙️ Calling function: ${name}`, args);
         try {
             if (!validTools.includes(name)) {
                 throw new Error(`Invalid function call: ${name}`);
             }
 
             const result = await todoTools[name](args);
-            console.log(`✅ Function result:`, result);  // for debugging
+            console.log(`✅ Function result:`, result);
+
+            // Add validation for result
+            if (!result || (typeof result !== 'object')) {
+                throw new Error(`Invalid result from function ${name}`);
+            }
 
             // Convert MongoDB data to plain objects
             const sanitizedResult = this.sanitizeResult(result);
@@ -178,24 +183,33 @@ class TodoAIChat {
             // Create observation message
             const observation = this.createObservation(name, sanitizedResult);
 
-            // Validate observation
+            // Ensure observation is valid and has content
             if (!observation || typeof observation !== 'object') {
                 throw new Error("Invalid observation generated");
             }
 
+            // Convert observation to string and validate it's not empty
+            const observationText = JSON.stringify(observation);
+            if (!observationText || observationText.trim() === '') {
+                throw new Error("Empty observation text generated");
+            }
+
             // Send observation to continue conversation
             const response = await chat.sendMessage([{
-                text: JSON.stringify(observation)
+                text: observationText
             }]);
 
             return response;
         } catch (error) {
             console.error(`❌ Function error:`, error);
+            // Ensure error message is not empty
+            const errorMessage = {
+                type: "error",
+                content: { message: error.message || "Unknown error occurred" }
+            };
+
             await chat.sendMessage([{
-                text: JSON.stringify({
-                    type: "error",
-                    content: { message: error.message }
-                })
+                text: JSON.stringify(errorMessage)
             }]);
             throw error;
         }
@@ -254,7 +268,7 @@ class TodoAIChat {
     }
 
     async processUserInput(input, history) {
-        // Validate input
+        // Validate input        
         if (!input || typeof input !== 'string' || input.trim() === '') {
             console.error("Invalid input: input must be a non-empty string");
             return {
@@ -264,18 +278,22 @@ class TodoAIChat {
         }
         try {
             const chat = await this.createNewChat(history);
-            const result = await chat.sendMessage([{
-                text: JSON.stringify({
-                    type: "user_input",
-                    content: { message: input }
-                })
-            }]);
 
-            const response = await this.processResponse(chat, result.response);
-            return {
-                message: response.finalOutput,
-                requiresUpdate: response.requiresUpdate
-            };
+            const sanitizedInput = input.trim();
+            if (sanitizedInput.length > 0) {
+                const result = await chat.sendMessage([{
+                    text: JSON.stringify({
+                        type: "user_input",
+                        content: { message: sanitizedInput }
+                    })
+                }]);
+
+                const response = await this.processResponse(chat, result.response);
+                return {
+                    message: response.finalOutput,
+                    requiresUpdate: response.requiresUpdate
+                };
+            }
         } catch (error) {
             console.error("Processing error:", error);
             return {

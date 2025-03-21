@@ -2,9 +2,13 @@ import React from "react";
 import Robot from "./DigitalWaiter2";
 import { motion } from "framer-motion";
 
-function Bot_run({ expression = "idle", message = "Ready to assist you!" }) {
-  // Define all expression parameters in a separate object, mapped by expression name
-  const expressionParameters = {
+function Bot_run({
+  expression = "idle",
+  message = "Ready to assist you!",
+  parameters = null,
+}) {
+  // Define default expression parameters in a separate object, mapped by expression name
+  const defaultExpressionParameters = {
     idle: {
       eyes: { shape: "neutral", color: "#00FFFF", blinkInterval: 5000 },
       mouth: { shape: "smallSmile" },
@@ -160,16 +164,21 @@ function Bot_run({ expression = "idle", message = "Ready to assist you!" }) {
   };
 
   // Build the full command object based on current expression
-  const buildCommandObject = (expressionType) => {
+  const buildCommandObject = (expressionType, customParameters) => {
+    // If custom parameters are provided, use them. Otherwise, fall back to default parameters
+    const finalParameters =
+      customParameters ||
+      defaultExpressionParameters[expressionType] ||
+      defaultExpressionParameters.idle;
+
     return {
-      expression: expressionType,
-      parameters:
-        expressionParameters[expressionType] || expressionParameters.idle,
+      action: expressionType, // This is the key change - setting action to expressionType
+      parameters: finalParameters,
     };
   };
 
   // Generate the full command with parameters for the Robot component
-  const command = buildCommandObject(expression);
+  const command = buildCommandObject(expression, parameters);
 
   return (
     <div className="items-start flex flex-col z-50 justify-center">

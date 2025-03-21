@@ -615,7 +615,7 @@ const Robot = ({ command, message }) => {
             {/* Robo Heart - gold accent */}
             <motion.div
               className="absolute top-12 left-0 right-0 mx-auto w-6 h-6 rounded-full"
-              style={{ backgroundColor: "#00FF99" }}
+              style={{ backgroundColor: "#bc8bf0" }}
               animate={{ scale: [1, 1.1, 1], opacity: [0.7, 0.9, 0.7] }}
               transition={{
                 repeat: Infinity,
@@ -675,9 +675,9 @@ const Robot = ({ command, message }) => {
                 </motion.div>
               )}
             </motion.div>
-            <div className="absolute top-44 left-1/3 text-yellow-600 text-xs ">
+            {/* <div className="absolute top-44 left-1/3 text-yellow-600 text-xs ">
               DineBuddy
-            </div>
+            </div> */}
           </div>
         </div>
       </motion.div>
