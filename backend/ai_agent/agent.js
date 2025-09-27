@@ -14,7 +14,7 @@ class TodoAIChat {
 
     initializeModel() {
         return this.genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-1.5-flash", 
             safetySettings: [
                 {
                     category: "HARM_CATEGORY_HARASSMENT",
