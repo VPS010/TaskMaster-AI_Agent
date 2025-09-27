@@ -15,7 +15,7 @@ class TodoAIChat {
     initializeModel() {
         return this.genAI.getGenerativeModel({
             // FIXED: Use the correct model name
-            model: "gemini-1.5-flash-latest", // Changed from "gemini-1.5-flash"
+            model: "gemini-2.5-flash", // Changed from "gemini-1.5-flash"
             // Alternative options:
             // model: "gemini-1.5-flash-001",
             // model: "gemini-1.5-flash-002", 
