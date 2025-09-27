@@ -14,13 +14,13 @@ connectDB();
 app.use(express.json());
 
 app.use(cors({
-    origin: [process.env.FRONTEND_URL],
+    origin: true,
     credentials: true
 }));
 
 const io = new Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL,
+        origin: true,
         methods: ["GET", "POST"]
     }
 });
