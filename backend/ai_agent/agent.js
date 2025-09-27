@@ -14,7 +14,12 @@ class TodoAIChat {
 
     initializeModel() {
         return this.genAI.getGenerativeModel({
-            model: "gemini-1.5-flash", 
+            // FIXED: Use the correct model name
+            model: "gemini-1.5-flash-latest", // Changed from "gemini-1.5-flash"
+            // Alternative options:
+            // model: "gemini-1.5-flash-001",
+            // model: "gemini-1.5-flash-002", 
+            // model: "gemini-pro", // If flash models aren't available
             safetySettings: [
                 {
                     category: "HARM_CATEGORY_HARASSMENT",
@@ -371,6 +376,18 @@ class TodoAIChat {
                 type: "error",
                 content: { message: "Invalid response format" }
             }];
+        }
+    }
+
+    // Optional: Add a method to list available models for debugging
+    async listAvailableModels() {
+        try {
+            const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + process.env.GEMINI_API_KEY);
+            const data = await response.json();
+            console.log("Available models:", data.models?.map(m => m.name));
+            return data.models;
+        } catch (error) {
+            console.error("Failed to list models:", error);
         }
     }
 }
