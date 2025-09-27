@@ -2,7 +2,7 @@
 
 TaskMaster AI is an AI-powered to-do manager built with **React and Node.js**. Designed to explore the capabilities of large language models (LLMs) without relying on specialized AI agent frameworks, it helps users manage tasks while delivering witty, sarcastic responses.
 
-It leverages the **Gemini 1.5 Flash-002** model developed by Google.
+It leverages the **Gemini 1.5 Flash** model developed by Google.
 This fast and versatile multimodal model supports an input context window of up to 1,048,576 tokens and can generate up to 8,192 tokens in a single request, making it highly efficient for diverse AI tasks. 
 Best of all, access to the Gemini API is available free of charge through Google AI Studio and Vertex AI.
 
