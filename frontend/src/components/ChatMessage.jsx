@@ -1,5 +1,6 @@
 import React from "react";
 import { User, Bot } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 const ChatMessage = ({ message }) => {
   return (
@@ -39,7 +40,21 @@ const ChatMessage = ({ message }) => {
               : "bg-blue-500/20 text-blue-100 border-2 border-blue-400/30"
           } shadow-lg hover:shadow-xl transition-shadow`}
         >
-          <p className="text-sm font-medium">{message.content}</p>
+          {message.type === "ai" ? (
+            <ReactMarkdown 
+              className="text-sm font-medium prose prose-invert prose-sm max-w-none"
+              components={{
+                p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                ul: ({children}) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                li: ({children}) => <li className="mb-1">{children}</li>,
+                strong: ({children}) => <strong className="font-bold text-blue-200">{children}</strong>
+              }}
+            >
+              {message.content.replace(/&#39;/g, "'").replace(/&amp;/g, "&")}
+            </ReactMarkdown>
+          ) : (
+            <p className="text-sm font-medium">{message.content}</p>
+          )}
         </div>
       </div>
     </div>
