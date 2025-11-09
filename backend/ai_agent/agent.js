@@ -354,16 +354,12 @@ class TodoAIChat {
 
     parseResponse(text) {
         try {
-            // Validate input text
             if (!text || typeof text !== 'string' || text.trim() === '') {
                 console.error("Empty or invalid response text");
-                return [{
-                    type: "error",
-                    content: { message: "Empty response received" }
-                }];
+                return [{ type: "error", content: { message: "Empty response received" } }];
             }
 
-            // Decode HTML entities
+            // Decode HTML entities and clean text
             let cleanedText = text
                 .replace(/&quot;/g, '"')
                 .replace(/&amp;/g, '&')
@@ -371,38 +367,62 @@ class TodoAIChat {
                 .replace(/&gt;/g, '>')
                 .replace(/&#39;/g, "'")
                 .replace(/```(json)?/g, "")
+                .replace(/\n/g, ' ')  // Replace newlines with spaces
                 .trim();
 
-            // Match all JSON objects
-            const regex = /\{[\s\S]*?\}(?=\s*\{|\s*$)/g;
-            const matches = cleanedText.match(regex);
+            // Split by lines and process each potential JSON
+            const lines = text.split('\n').map(line => 
+                line.replace(/&quot;/g, '"')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&#39;/g, "'")
+                    .trim()
+            ).filter(line => line.startsWith('{'));
 
-            if (matches) {
-                const results = [];
-                for (const jsonString of matches) {
-                    try {
-                        results.push(JSON.parse(jsonString));
-                    } catch (error) {
-                        console.error("Failed to parse JSON block:", jsonString, error);
+            const results = [];
+            
+            // Try parsing individual lines first
+            for (const line of lines) {
+                try {
+                    const parsed = JSON.parse(line);
+                    results.push(parsed);
+                } catch (error) {
+                    // If line parsing fails, try extracting JSON from it
+                    const jsonMatch = line.match(/\{.*\}/);
+                    if (jsonMatch) {
+                        try {
+                            results.push(JSON.parse(jsonMatch[0]));
+                        } catch (e) {
+                            console.error("Failed to parse extracted JSON:", jsonMatch[0], e);
+                        }
                     }
                 }
-                return results.length > 0 ? results : [{
-                    type: "error",
-                    content: { message: "No valid JSON found in response" }
-                }];
             }
 
-            console.error("No JSON blocks found in response:", text);
-            return [{
+            // If no results from lines, try the original regex approach
+            if (results.length === 0) {
+                const regex = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
+                const matches = cleanedText.match(regex);
+                
+                if (matches) {
+                    for (const jsonString of matches) {
+                        try {
+                            results.push(JSON.parse(jsonString));
+                        } catch (error) {
+                            console.error("Failed to parse JSON block:", jsonString, error);
+                        }
+                    }
+                }
+            }
+
+            return results.length > 0 ? results : [{
                 type: "error",
-                content: { message: "Invalid response format" }
+                content: { message: "No valid JSON found in response" }
             }];
         } catch (error) {
             console.error("Failed to parse response:", text, error);
-            return [{
-                type: "error",
-                content: { message: "Invalid response format" }
-            }];
+            return [{ type: "error", content: { message: "Invalid response format" } }];
         }
     }
 
