@@ -261,7 +261,27 @@ class TodoAIChat {
 
             const parts = response.candidates?.[0]?.content?.parts || [];
             for (const part of parts) {
-                await processPart(part);
+                // Handle function calls directly from parts
+                if (part.functionCall) {
+                    const result = await this.handleFunctionCall(
+                        chat,
+                        part.functionCall.name,
+                        part.functionCall.args
+                    );
+                    requiresUpdate = true;
+
+                    // Process subsequent responses recursively
+                    if (result && result.response) {
+                        const subResponse = await this.processResponse(
+                            chat,
+                            result.response,
+                            onPartialResponse
+                        );
+                        finalOutput = subResponse.finalOutput || finalOutput;
+                    }
+                } else {
+                    await processPart(part);
+                }
             }
 
         } catch (error) {
@@ -343,8 +363,15 @@ class TodoAIChat {
                 }];
             }
 
-            // Remove code fence markers
-            let cleanedText = text.replace(/```(json)?/g, "").trim();
+            // Decode HTML entities
+            let cleanedText = text
+                .replace(/&quot;/g, '"')
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&#39;/g, "'")
+                .replace(/```(json)?/g, "")
+                .trim();
 
             // Match all JSON objects
             const regex = /\{[\s\S]*?\}(?=\s*\{|\s*$)/g;
