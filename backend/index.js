@@ -62,15 +62,31 @@ io.on("connection", (socket) => {
 
             }]);
 
-            console.log("User message:", message);// for debugging
-            console.log("Model response:", result.response.candidates[0].content); //for debugging 
+            console.log("User message:", message);
+            
+            // Preprocess response to fix HTML entities
+            const responseContent = result.response.candidates[0].content;
+            if (responseContent?.parts) {
+                responseContent.parts = responseContent.parts.map(part => {
+                    if (part.text) {
+                        part.text = part.text
+                            .replace(/&quot;/g, '"')
+                            .replace(/&#39;/g, "'")
+                            .replace(/&amp;/g, '&')
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>');
+                    }
+                    return part;
+                });
+            }
+            
+            console.log("Processed response:", responseContent);
 
             // Process initial response
             const { finalOutput, requiresUpdate } = await todoAI.processResponse(
                 chat,
                 result.response,
                 (response) => {
-                    // Send intermediate responses to client
                     socket.emit("response", {
                         type: "response",
                         content: response

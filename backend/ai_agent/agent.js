@@ -227,16 +227,22 @@ class TodoAIChat {
         try {
             const processPart = async (part) => {
                 if (part.text) {
-                    const parsedResponses = this.parseResponse(part.text);
+                    // Validate and clean text before parsing
+                    const cleanText = this.decodeAllHtmlEntities(part.text);
+                    
+                    // Check if response contains HTML entities and log warning
+                    if (part.text !== cleanText) {
+                        console.warn("⚠️ HTML entities detected and cleaned:", part.text.substring(0, 100));
+                    }
+                    
+                    const parsedResponses = this.parseResponse(cleanText);
                     for (const parsed of parsedResponses) {
-                        // Handle immediate responses
                         if (parsed.type === "output") {
                             finalOutput = parsed.content.message;
                             onPartialResponse?.(parsed.content);
                             requiresUpdate = true;
                         }
 
-                        // Handle function calls
                         if (parsed.type === "action" && parsed.content.tool) {
                             const result = await this.handleFunctionCall(
                                 chat,
@@ -245,7 +251,6 @@ class TodoAIChat {
                             );
                             requiresUpdate = true;
 
-                            // Process subsequent responses recursively
                             if (result && result.response) {
                                 const subResponse = await this.processResponse(
                                     chat,
@@ -352,65 +357,71 @@ class TodoAIChat {
         });
     }
 
+    decodeAllHtmlEntities(text) {
+        if (!text || typeof text !== 'string') return text;
+        
+        return text
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&apos;/g, "'")
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&#x27;/g, "'")
+            .replace(/&#x2F;/g, '/')
+            .replace(/&#x60;/g, '`')
+            .replace(/&#x3D;/g, '=');
+    }
+
     parseResponse(text) {
         try {
             if (!text || typeof text !== 'string' || text.trim() === '') {
-                console.error("Empty or invalid response text");
                 return [{ type: "error", content: { message: "Empty response received" } }];
             }
 
-            // Decode HTML entities and clean text
-            let cleanedText = text
-                .replace(/&quot;/g, '"')
-                .replace(/&amp;/g, '&')
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .replace(/&#39;/g, "'")
+            // Decode ALL HTML entities first
+            let cleanText = this.decodeAllHtmlEntities(text)
                 .replace(/```(json)?/g, "")
-                .replace(/\n/g, ' ')  // Replace newlines with spaces
+                .replace(/\r\n/g, '\n')
+                .replace(/\r/g, '\n')
                 .trim();
-
-            // Split by lines and process each potential JSON
-            const lines = text.split('\n').map(line => 
-                line.replace(/&quot;/g, '"')
-                    .replace(/&amp;/g, '&')
-                    .replace(/&lt;/g, '<')
-                    .replace(/&gt;/g, '>')
-                    .replace(/&#39;/g, "'")
-                    .trim()
-            ).filter(line => line.startsWith('{'));
 
             const results = [];
             
-            // Try parsing individual lines first
+            // Split by newlines and try each line
+            const lines = cleanText.split('\n').filter(line => line.trim());
+            
             for (const line of lines) {
-                try {
-                    const parsed = JSON.parse(line);
-                    results.push(parsed);
-                } catch (error) {
-                    // If line parsing fails, try extracting JSON from it
-                    const jsonMatch = line.match(/\{.*\}/);
-                    if (jsonMatch) {
-                        try {
-                            results.push(JSON.parse(jsonMatch[0]));
-                        } catch (e) {
-                            console.error("Failed to parse extracted JSON:", jsonMatch[0], e);
-                        }
-                    }
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
+                    try {
+                        results.push(JSON.parse(trimmedLine));
+                        continue;
+                    } catch (e) {}
                 }
             }
 
-            // If no results from lines, try the original regex approach
+            // If no line parsing worked, try extracting JSON blocks
             if (results.length === 0) {
-                const regex = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
-                const matches = cleanedText.match(regex);
+                // More aggressive JSON extraction
+                let depth = 0;
+                let start = -1;
                 
-                if (matches) {
-                    for (const jsonString of matches) {
-                        try {
-                            results.push(JSON.parse(jsonString));
-                        } catch (error) {
-                            console.error("Failed to parse JSON block:", jsonString, error);
+                for (let i = 0; i < cleanText.length; i++) {
+                    if (cleanText[i] === '{') {
+                        if (depth === 0) start = i;
+                        depth++;
+                    } else if (cleanText[i] === '}') {
+                        depth--;
+                        if (depth === 0 && start !== -1) {
+                            const jsonStr = cleanText.substring(start, i + 1);
+                            try {
+                                results.push(JSON.parse(jsonStr));
+                            } catch (e) {
+                                console.error("JSON parse failed:", jsonStr.substring(0, 100) + "...");
+                            }
+                            start = -1;
                         }
                     }
                 }
@@ -418,11 +429,11 @@ class TodoAIChat {
 
             return results.length > 0 ? results : [{
                 type: "error",
-                content: { message: "No valid JSON found in response" }
+                content: { message: "No valid JSON found" }
             }];
         } catch (error) {
-            console.error("Failed to parse response:", text, error);
-            return [{ type: "error", content: { message: "Invalid response format" } }];
+            console.error("Parse error:", error);
+            return [{ type: "error", content: { message: "Parse failed" } }];
         }
     }
 
